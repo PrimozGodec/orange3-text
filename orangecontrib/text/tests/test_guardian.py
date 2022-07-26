@@ -109,3 +109,7 @@ class TestGuardian(unittest.TestCase):
         """
         corp = self.api.search('Slovenia')
         self.assertEqual(len(corp), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
