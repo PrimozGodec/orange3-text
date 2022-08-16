@@ -8,7 +8,8 @@ from Orange.widgets.tests.utils import simulate
 from Orange.misc.utils.embedder_utils import EmbeddingConnectionError
 
 from orangecontrib.text.tests.test_documentembedder import PATCH_METHOD, make_dummy_post
-from orangecontrib.text.vectorization.sbert import EMB_DIM
+from orangecontrib.text.vectorization.document_embedder import DocumentEmbedder
+from orangecontrib.text.vectorization.sbert import EMB_DIM, SBERT
 from orangecontrib.text.widgets.owdocumentembedding import OWDocumentEmbedding
 from orangecontrib.text import Corpus
 
@@ -28,10 +29,14 @@ class TestOWDocumentEmbedding(WidgetTest):
 
         # test on fastText, except for tests that change the setting
         self.widget.findChildren(QRadioButton)[1].click()
-        self.widget.vectorizer.method.clear_cache()
+        SBERT().clear_cache()
+        DocumentEmbedder.clear_cache("en")
+        DocumentEmbedder.clear_cache("sl")
 
     def tearDown(self):
-        self.widget.vectorizer.method.clear_cache()
+        SBERT().clear_cache()
+        DocumentEmbedder.clear_cache("en")
+        DocumentEmbedder.clear_cache("sl")
 
     def test_input(self):
         set_data = self.widget.set_data = Mock()
@@ -57,7 +62,7 @@ class TestOWDocumentEmbedding(WidgetTest):
     @patch(PATCH_METHOD, make_dummy_post(b''))
     def test_some_failed(self):
         simulate.combobox_activate_index(
-            self.widget.controlArea.findChildren(QComboBox)[1], 1
+            self.widget.controlArea.findChildren(QComboBox)[0], 1
         )
         self.send_signal("Corpus", self.corpus)
         self.wait_until_finished()
@@ -120,7 +125,7 @@ class TestOWDocumentEmbedding(WidgetTest):
     @patch(PATCH_METHOD, make_dummy_post(SBERT_RESPONSE))
     def test_sbert(self):
         self.widget.findChildren(QRadioButton)[0].click()
-        self.widget.vectorizer.method.clear_cache()
+        SBERT().clear_cache()
 
         self.send_signal("Corpus", self.corpus)
         result = self.get_output(self.widget.Outputs.corpus)
@@ -144,6 +149,40 @@ class TestOWDocumentEmbedding(WidgetTest):
         result = self.get_output(self.widget.Outputs.corpus)
         self.assertIsNotNone(result)
         self.assertEqual("deerwester", result.name)
+
+    @patch(PATCH_METHOD, make_dummy_post(b'{"embedding": [1.3, 1]}'))
+    def test_fasttext_language(self):
+        # english corpus
+        self.send_signal("Corpus", self.corpus)
+        result = self.get_output(self.widget.Outputs.corpus)
+        self.assertEqual(9, len(result))
+
+        # slovenian corpus
+        self.corpus.attributes["language"] = "sl"
+        self.send_signal("Corpus", self.corpus)
+        result = self.get_output(self.widget.Outputs.corpus)
+        self.assertEqual(9, len(result))
+
+        # language none
+        self.corpus.attributes["language"] = None
+        self.send_signal("Corpus", self.corpus)
+        result = self.get_output(self.widget.Outputs.corpus)
+        self.assertIsNone(result)
+        self.assertTrue(self.widget.Error.unexpected_error.is_shown())
+
+        # language not supported
+        self.corpus.attributes["language"] = "be"
+        self.send_signal("Corpus", self.corpus)
+        result = self.get_output(self.widget.Outputs.corpus)
+        self.assertIsNone(result)
+        self.assertTrue(self.widget.Error.unexpected_error.is_shown())
+
+        # language english
+        self.corpus.attributes["language"] = "en"
+        self.send_signal("Corpus", self.corpus)
+        result = self.get_output(self.widget.Outputs.corpus)
+        self.assertEqual(9, len(result))
+        self.assertFalse(self.widget.Error.unexpected_error.is_shown())
 
 
 if __name__ == "__main__":

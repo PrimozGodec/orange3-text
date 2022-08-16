@@ -10,7 +10,6 @@ from Orange.widgets.widget import Msg, Output, OWWidget
 from orangecontrib.text.corpus import Corpus
 from orangecontrib.text.vectorization.document_embedder import (
     AGGREGATORS,
-    LANGS_TO_ISO,
     DocumentEmbedder,
 )
 from orangecontrib.text.vectorization.sbert import SBERT
@@ -18,8 +17,6 @@ from orangecontrib.text.widgets.utils.owbasevectorizer import (
     OWBaseVectorizer,
     Vectorizer,
 )
-
-LANGUAGES = sorted(list(LANGS_TO_ISO.keys()))
 
 
 class EmbeddingVectorizer(Vectorizer):
@@ -57,7 +54,6 @@ class OWDocumentEmbedding(OWBaseVectorizer):
         unsuccessful_embeddings = Msg("Some embeddings were unsuccessful.")
 
     method: int = Setting(default=0)
-    language: str = Setting(default="English")
     aggregator: str = Setting(default="Mean")
 
     def __init__(self):
@@ -77,17 +73,6 @@ class OWDocumentEmbedding(OWBaseVectorizer):
         gui.appendRadioButton(rbtns, "Multilingual SBERT")
         gui.appendRadioButton(rbtns, "fastText:")
         ibox = gui.indentedBox(rbtns)
-        self.language_cb = gui.comboBox(
-            ibox,
-            self,
-            "language",
-            items=LANGUAGES,
-            label="Language:",
-            sendSelectedValue=True,  # value is actual string not index
-            orientation=Qt.Horizontal,
-            callback=self.on_change,
-            searchable=True,
-        )
         self.aggregator_cb = gui.comboBox(
             ibox,
             self,
@@ -105,12 +90,10 @@ class OWDocumentEmbedding(OWBaseVectorizer):
     def update_method(self):
         disabled = self.method == 0
         self.aggregator_cb.setDisabled(disabled)
-        self.language_cb.setDisabled(disabled)
         self.vectorizer = EmbeddingVectorizer(self.init_method(), self.corpus)
 
     def init_method(self):
-        params = dict(language=LANGS_TO_ISO[self.language], aggregator=self.aggregator)
-        kwargs = ({}, params)[self.method]
+        kwargs = ({}, dict(aggregator=self.aggregator))[self.method]
         return self.Methods[self.method](**kwargs)
 
     @gui.deferred
@@ -133,7 +116,7 @@ class OWDocumentEmbedding(OWBaseVectorizer):
         if isinstance(ex, EmbeddingConnectionError):
             self.Error.no_connection()
         else:
-            self.Error.unexpected_error(type(ex).__name__)
+            self.Error.unexpected_error(str(ex))
         self.cancel()
 
     def cancel(self):
@@ -145,8 +128,7 @@ class OWDocumentEmbedding(OWBaseVectorizer):
     def migrate_settings(cls, settings: Dict[str, Any], version: Optional[int]):
         if version is None or version < 2:
             # before version 2 settings were indexes now they are strings
-            # with language name and selected aggregator name
-            settings["language"] = LANGUAGES[settings["language"]]
+            # with selected aggregator name
             settings["aggregator"] = AGGREGATORS[settings["aggregator"]]
 
 
