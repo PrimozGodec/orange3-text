@@ -129,8 +129,15 @@ class NYT:
         if len(records) > max_docs:
             records = records[:max_docs]
 
-        return Corpus.from_documents(records, 'NY Times', self.attributes,
-                                     self.class_vars, self.metas, title_indices=[-1])
+        return Corpus.from_documents(
+            records,
+            "NY Times",
+            self.attributes,
+            self.class_vars,
+            self.metas,
+            title_indices=[-1],
+            language="en",
+        )
 
     def _cache_init(self):
         """ Initialize cache in Orange environment buffer dir. """
