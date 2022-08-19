@@ -74,6 +74,52 @@ class CorpusContextHandler(DomainContextHandler):
         return super().decode_setting(setting, value, corpus.domain, *args)
 
 
+class CorpusContextHandler(DomainContextHandler):
+    """
+    Since Corpus enable language selection and language is not domain dependent
+    but documents dependent setting specific handler is required. It will mathc
+    contexts when selected attributes are the same and hash of the documents
+    is the same.
+
+    Note: With this modification context matching is stricter. It was discussed
+    that in this case there would be two contexts required one for attributes
+    and one for language. Idea is that in the feature we implement context handlers
+    such that specific matcher can be set for a specific setting (e.g. language).
+    """
+
+    def open_context(self, widget, corpus):
+        """
+        Modifying open_context such that it propagates complete corpus not only
+        domain - required for hash computation
+        """
+        if corpus is None:
+            return
+        ContextHandler.open_context(
+            self, widget, corpus, *self.encode_domain(corpus.domain)
+        )
+
+    def new_context(self, corpus, attributes, metas):
+        """Adding hash of documents to the context"""
+        context = super().new_context(corpus, attributes, metas)
+        context.documents_hash = hash(tuple(corpus.documents))
+        return context
+
+    def match(self, context, corpus, attrs, metas):
+        """
+        For a match documents in the corpus must have same hash value and
+        attributes should mathc
+        """
+        if hasattr(context, "documents_hash") and not context.documents_hash == hash(
+            tuple(corpus.documents)
+        ):
+            return self.NO_MATCH
+        return super().match(context, corpus.domain, attrs, metas)
+
+    def decode_setting(self, setting, value, corpus=None, *args):
+        """Modifying decode setting to work with Corpus instead of domain"""
+        return super().decode_setting(setting, value, corpus.domain, *args)
+
+
 class OWCorpus(OWWidget, ConcurrentWidgetMixin):
     name = "Corpus"
     description = "Load a corpus of text documents."
