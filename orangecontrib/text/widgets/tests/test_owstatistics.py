@@ -38,6 +38,7 @@ class TestStatisticsWidget(WidgetTest):
             X=np.empty((len(metas), 0)),
             metas=metas,
             text_features=[text_var],
+            language="en"
         )
 
     def _set_feature(self, feature_name: str, value: str = ""):
